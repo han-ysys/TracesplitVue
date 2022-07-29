@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { onMounted, ref } from 'vue'
-import { BaseCurve } from '../utils/curve'
+import { SangerChart } from '../utils/curve'
 import testdata from '../test_data/trace_data.json'
 const chart = ref()
 onMounted(() => {
-    const curve = new BaseCurve(testdata['0'], { yDomain: [0, 306] });
+    const sangerchart = new SangerChart(testdata);
     // append chart to dom
-    (chart.value as HTMLElement).appendChild(curve.curve!)
+    (chart.value as HTMLElement).appendChild(sangerchart.svg.node()!)
+    console.log(sangerchart.svg)
 })
 </script>
 
