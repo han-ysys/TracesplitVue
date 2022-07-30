@@ -21,13 +21,34 @@ export class SangerChart {
     G: d3.Line<[number, number]>;
     C: d3.Line<[number, number]>;
   };
+  width: number;
+  height: number;
+  margin: { top: number; right: number; bottom: number; left: number; };
+  gx!: d3.Selection<SVGGElement, any, any, any>;
+  xAxis!: d3.Axis<d3.NumberValue>;
+  areaPath!: { A: d3.Selection<SVGPathElement, any, any, any>; T: d3.Selection<SVGPathElement, any, any, any>; C: d3.Selection<SVGPathElement, any, any, any>; G: d3.Selection<SVGPathElement, any, any, any>; };
+  linePath!: { A: d3.Selection<SVGPathElement, any, any, any>; T: d3.Selection<SVGPathElement, any, any, any>; C: d3.Selection<SVGPathElement, any, any, any>; G: d3.Selection<SVGPathElement, any, any, any>; };
   constructor(
-    data: { [key: string]: base }
+    data: { [key: string]: base },
+    {
+      width = 2000,
+      height = 400,
+      margin = {
+        top: 20,
+        right: 20,
+        bottom: 20,
+        left: 60,
+      },
+    } = {}
   ) {
+    this.width = width;
+    this.height = height;
+    this.margin = margin;
     this.data = data;
     this.shapeOfData();
     this.axisInitialize();
     this.appendPath();
+    this.setZoom();
   }
 
   shapeOfData() {
@@ -47,72 +68,53 @@ export class SangerChart {
     this.xDomain = [0, xlength];
   }
 
-  axisInitialize(
-    width = 2000,
-    height = 400,
-    margin = {
-      top: 20,
-      right: 20,
-      bottom: 20,
-      left: 60,
-    }
-  ) {
+  axisInitialize() {
     this.yScale = d3.scaleLinear(this.yDomain, [
-      height - margin.bottom,
-      margin.top,
+      this.height - this.margin.bottom,
+      this.margin.top,
     ]);
-    const yAxis = d3.axisLeft(this.yScale).ticks(height / 40);
+    const yAxis = d3.axisLeft(this.yScale).ticks(this.height / 40);
     this.xScale = d3.scaleLinear(this.xDomain, [
-      margin.left,
-      width - margin.right,
+      this.margin.left,
+      this.width - this.margin.right,
     ]);
     const xScale_by_base = d3.scaleLinear(
       [0, this.length],
-      [margin.left, width - margin.right]
+      [this.margin.left, this.width - this.margin.right]
     );
-    const xAxis = d3.axisBottom(xScale_by_base).ticks(width / 40);
+    this.xAxis = d3.axisBottom(xScale_by_base).ticks(this.width / 40);
 
     this.svg = d3
       .create("svg")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("width", this.width)
+      .attr("height", this.height)
+      .attr("viewBox", `0 0 ${this.width} ${this.height}`)
       .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
     this.svg
       .append("g")
-      .attr("transform", `translate(${margin.left},0)`)
+      .attr("transform", `translate(${this.margin.left},0)`)
       .call(yAxis)
       .call((g) => g.select(".domain").remove())
       .call((g) =>
         g
           .selectAll(".tick line")
           .clone()
-          .attr("x2", width - margin.left - margin.right)
+          .attr("x2", this.width - this.margin.left - this.margin.right)
           .attr("stroke-opacity", 0.1)
       )
       .call((g) =>
         g
           .append("text")
-          .attr("x", -margin.left)
+          .attr("x", -this.margin.left)
           .attr("y", 10)
           .attr("fill", "currentColor")
           .attr("text-anchor", "start")
           .text("Trace")
       );
-    this.svg
+    this.gx = this.svg
       .append("g")
-      .attr("transform", `translate(0,${height - margin.bottom})`)
-      .call(xAxis)
-      .call((g) =>
-        g
-          .append("text")
-          .attr("x", -margin.left)
-          .attr("y", 10)
-          .attr("fill", "currentColor")
-          .attr("text-anchor", "start")
-          .text("Position")
-      );
-      
+      .attr("transform", `translate(0,${this.height - this.margin.bottom})`)
+      .call(this.xAxis, this.xScale);
   }
 
   appendPath(
@@ -176,26 +178,26 @@ export class SangerChart {
         .x((_, i) => this.xScale(X[i]))
         .y((_, i) => this.yScale(Yc[i])),
     };
-    const area = {
+    this.areaPath = {
       A: this.svg.append("path").attr("fill", color.A).attr("opacity", 0.4),
       T: this.svg.append("path").attr("fill", color.T).attr("opacity", 0.4),
       C: this.svg.append("path").attr("fill", color.C).attr("opacity", 0.4),
       G: this.svg.append("path").attr("fill", color.G).attr("opacity", 0.4),
     };
-    const line = {
+    this.linePath = {
       A: this.svg.append("path").attr("stroke", color.A).attr("opacity", 0.4),
       T: this.svg.append("path").attr("stroke", color.T).attr("opacity", 0.4),
       C: this.svg.append("path").attr("stroke", color.C).attr("opacity", 0.4),
       G: this.svg.append("path").attr("stroke", color.G).attr("opacity", 0.4),
     };
-    line.A.attr("d", this.area.A(I));
-    line.T.attr("d", this.area.T(I));
-    line.G.attr("d", this.area.G(I));
-    line.C.attr("d", this.area.C(I));
-    area.A.attr("d", this.area.A(I));
-    area.T.attr("d", this.area.T(I));
-    area.G.attr("d", this.area.G(I));
-    area.C.attr("d", this.area.C(I));
+    this.linePath.A.attr("d", this.area.A(I));
+    this.linePath.T.attr("d", this.area.T(I));
+    this.linePath.G.attr("d", this.area.G(I));
+    this.linePath.C.attr("d", this.area.C(I));
+    this.areaPath.A.attr("d", this.area.A(I));
+    this.areaPath.T.attr("d", this.area.T(I));
+    this.areaPath.G.attr("d", this.area.G(I));
+    this.areaPath.C.attr("d", this.area.C(I));
   }
 
   static baseTrace(data: { [key: string]: base }, base: "A" | "T" | "C" | "G") {
@@ -204,5 +206,29 @@ export class SangerChart {
       baseTrace = baseTrace.concat(data[each][base]);
     }
     return baseTrace;
+  }
+
+  setZoom() {
+    const zoomed = (event: any) => {
+      const xz = event.transform.rescaleX(this.xScale);
+      this.areaPath.A.attr("d", this.area.A(xz));
+      this.gx.call(this.xAxis, xz);
+    };
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, 32])
+      .extent([
+        [this.margin.left, 0],
+        [this.width - this.margin.right, this.height],
+      ])
+      .translateExtent([
+        [this.margin.left, -Infinity],
+        [this.width - this.margin.right, Infinity],
+      ])
+      .on("zoom", zoomed);
+    this.svg.call(zoom)
+    .transition()
+    .duration(750)
+    .call(zoom.scaleTo, 4, [this.xScale(this.xDomain[0]), this.xScale(this.xDomain[1])]);
   }
 }
