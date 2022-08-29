@@ -7,7 +7,6 @@ onMounted(() => {
     const sangerchart = new SangerChart(testdata);
     // append chart to dom
     (chart.value as HTMLElement).appendChild(sangerchart.svg.node()!)
-    console.log(sangerchart.svg)
 })
 </script>
 

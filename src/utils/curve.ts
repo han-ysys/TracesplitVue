@@ -65,6 +65,7 @@ export class SangerChart {
     this.shapeOfData(data);
     this.axisInitialize();
     this.appendPath();
+    this.basecall();
     this.setZoom();
   }
 
@@ -95,10 +96,6 @@ export class SangerChart {
       this.margin.left,
       this.width - this.margin.right,
     ]);
-    const xScale_by_base = d3.scaleLinear(
-      [0, this.length],
-      [this.margin.left, this.width - this.margin.right]
-    );
     this.xAxis = (g, x) => g
     .attr("transform", `translate(0,${this.height - this.margin.bottom})`)
     .call(d3
@@ -135,7 +132,7 @@ export class SangerChart {
   appendPath(
     x = (_: any, x: number) => x,
     y = (y: number) => y,
-    curve = d3.curveLinear,
+    curve = d3.curveNatural,
     color = { A: "#baf28d", T: "#f26389", C: "#8a9fe3", G: "#f2bc8d" }
   ) {
     const Ya = d3.map(SangerChart.baseTrace(this.data, "A"), y);
@@ -146,7 +143,7 @@ export class SangerChart {
     this.I = d3.range(this.xDomain[1]);
 
     this.svg
-      .append("clilpPath")
+      .append("clipPath")
       .attr("id", "clipclip")
       .append("rect")
       .attr("x", this.margin.left)
@@ -184,32 +181,32 @@ export class SangerChart {
           .y0(this.yScale(0))
           .y1((_, i) => this.yScale(Yc[i]))(data),
     };
-    // this.line = {
-    //   A: (data, x = this.xScale) =>
-    //     d3
-    //       .line()
-    //       .curve(curve)
-    //       .x((_, i) => x(X[i]))
-    //       .y((_, i) => this.yScale(Ya[i]))(data),
-    //   T: (data, x = this.xScale) =>
-    //     d3
-    //       .line()
-    //       .curve(curve)
-    //       .x((_, i) => x(X[i]))
-    //       .y((_, i) => this.yScale(Yt[i]))(data),
-    //   G: (data, x = this.xScale) =>
-    //     d3
-    //       .line()
-    //       .curve(curve)
-    //       .x((_, i) => x(X[i]))
-    //       .y((_, i) => this.yScale(Yg[i]))(data),
-    //   C: (data, x = this.xScale) =>
-    //     d3
-    //       .line()
-    //       .curve(curve)
-    //       .x((_, i) => x(X[i]))
-    //       .y((_, i) => this.yScale(Yc[i]))(data),
-    // };
+    this.line = {
+      A: (data, x = this.xScale) =>
+        d3
+          .line()
+          .curve(curve)
+          .x((_, i) => x(X[i]))
+          .y((_, i) => this.yScale(Ya[i]))(data),
+      T: (data, x = this.xScale) =>
+        d3
+          .line()
+          .curve(curve)
+          .x((_, i) => x(X[i]))
+          .y((_, i) => this.yScale(Yt[i]))(data),
+      G: (data, x = this.xScale) =>
+        d3
+          .line()
+          .curve(curve)
+          .x((_, i) => x(X[i]))
+          .y((_, i) => this.yScale(Yg[i]))(data),
+      C: (data, x = this.xScale) =>
+        d3
+          .line()
+          .curve(curve)
+          .x((_, i) => x(X[i]))
+          .y((_, i) => this.yScale(Yc[i]))(data),
+    };
     this.areaPath = {
       A: this.svg
         .append("path")
@@ -256,12 +253,48 @@ export class SangerChart {
         .attr("stroke-width", 1)
         .attr("stroke-linejoin", "round"),
     };
-    // this.linePath = {
-    //   A: this.svg.append("path").attr("stroke", color.A),
-    //   T: this.svg.append("path").attr("stroke", color.T),
-    //   C: this.svg.append("path").attr("stroke", color.C),
-    //   G: this.svg.append("path").attr("stroke", color.G),
-    // };
+    this.linePath = {
+      A: this.svg
+        .append("path")
+        .attr(
+          "clip-path",
+          "url(" + new URL("#clipclip", window.location.href) + ")"
+        )
+        .attr("stroke", color.A)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-linejoin", "round")
+        .attr("fill", "none"),
+      T: this.svg
+        .append("path")
+        .attr(
+          "clip-path",
+          "url(" + new URL("#clipclip", window.location.href) + ")"
+        )
+        .attr("stroke", color.T)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-linejoin", "round")
+        .attr("fill", "none"),
+      C: this.svg
+        .append("path")
+        .attr(
+          "clip-path",
+          "url(" + new URL("#clipclip", window.location.href) + ")"
+        )
+        .attr("stroke", color.C)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-linejoin", "round")
+        .attr("fill", "none"),
+      G: this.svg
+        .append("path")
+        .attr(
+          "clip-path",
+          "url(" + new URL("#clipclip", window.location.href) + ")"
+        )
+        .attr("stroke", color.G)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-linejoin", "round")
+        .attr("fill", "none"),
+    };
   }
 
   static baseTrace(data: { [key: string]: base }, base: "A" | "T" | "C" | "G") {
@@ -272,17 +305,58 @@ export class SangerChart {
     return baseTrace;
   }
 
+  basecall() {
+    let pos = 0
+    const basePos = []
+    for (const base in this.data) {
+      const length = this.data[base].A.length;
+      pos += length
+      basePos.push(pos - length / 2)
+      this.svg
+        .append("text")
+        .attr("x", this.xScale(pos - length / 2))
+        .attr("y", 20)
+        .attr("font-size", "20px")
+        .attr("font-weight", "bold")
+        .attr("text-anchor", "middle")
+        .attr("class", "basecall")
+        .text(call(this.data[base]));
+    }
+
+    function call(base: base) {
+      const maxArray: {[key: string]: number} = {}
+      for (const type in base) {
+        maxArray[type] = Math.max(...base[type as keyof base])
+      }
+      const max = Math.max(...Object.values(maxArray))
+      switch(max) {
+        case maxArray.A:
+          return "A"
+        case maxArray.T:
+          return "T"
+        case maxArray.C:
+          return "C"
+        case maxArray.G:
+          return "G"
+      }
+      return "N"
+    }
+  }
+
   setZoom() {
     const zoomed = (event: any) => {
       const xz = event.transform.rescaleX(this.xScale);
+      this.svg.selectAll('.basecall').attr('x', (d, i, elements) => {
+        return xz(parseFloat(d3.select(elements[i]).attr("x")))
+      });
       this.areaPath.A.attr("d", this.area.A(this.I, xz));
       this.areaPath.T.attr("d", this.area.T(this.I, xz));
       this.areaPath.G.attr("d", this.area.G(this.I, xz));
       this.areaPath.C.attr("d", this.area.C(this.I, xz));
-      // this.linePath.A.attr("d", this.area.A(this.I, xz));
-      // this.linePath.T.attr("d", this.area.T(this.I, xz));
-      // this.linePath.G.attr("d", this.area.G(this.I, xz));
-      // this.linePath.C.attr("d", this.area.C(this.I, xz));
+      this.linePath.A.attr("d", this.line.A(this.I, xz));
+      this.linePath.T.attr("d", this.line.T(this.I, xz));
+      this.linePath.G.attr("d", this.line.G(this.I, xz));
+      this.linePath.C.attr("d", this.line.C(this.I, xz));
       this.gx.call(this.xAxis, xz);
     };
     const zoom = d3
@@ -297,6 +371,10 @@ export class SangerChart {
         [this.width - this.margin.right, Infinity],
       ])
       .on("zoom", zoomed);
-    this.svg.call(zoom).transition().duration(750).call(zoom.scaleTo, 4);
+    this.svg
+      .call(zoom)
+      .transition()
+      .duration(750)
+      // .call(zoom.scaleTo, 4);
   }
 }
