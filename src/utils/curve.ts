@@ -1,5 +1,6 @@
 import { base } from '../interface'
 import * as d3 from 'd3'
+import { NumberValue } from 'd3';
 
 export class SangerChart {
   length: number = 0;
@@ -39,6 +40,7 @@ export class SangerChart {
     C: (data: any, x?: d3.ScaleLinear<number, number, never>) => string | null;
   };
   xAxis!: (g: any, x: any) => any;
+  basePos: (number|string)[][];
   constructor(
     data: { [key: string]: base },
     {
@@ -62,11 +64,37 @@ export class SangerChart {
       .attr("height", this.height)
       .attr("viewBox", `0 0 ${this.width} ${this.height}`)
       .attr("style", "max-width: 100%; height: auto; height: intrinsic;");
+    let pos = 0
+    this.basePos = [];
+    for (const base in this.data) {
+      const length = this.data[base].A.length;
+      pos += length;
+      this.basePos.push([(Math.ceil(pos - length / 2)), call(this.data[base])]);
+    }
     this.shapeOfData(data);
     this.axisInitialize();
     this.appendPath();
     this.basecall();
     this.setZoom();
+
+    function call(base: base) {
+      const maxArray: { [key: string]: number } = {};
+      for (const type in base) {
+        maxArray[type] = Math.max(...base[type as keyof base]);
+      }
+      const max = Math.max(...Object.values(maxArray));
+      switch (max) {
+        case maxArray.A:
+          return "A";
+        case maxArray.T:
+          return "T";
+        case maxArray.C:
+          return "C";
+        case maxArray.G:
+          return "G";
+      }
+      return "N";
+    }
   }
 
   shapeOfData(data: { [key: string]: base }) {
@@ -96,12 +124,24 @@ export class SangerChart {
       this.margin.left,
       this.width - this.margin.right,
     ]);
-    this.xAxis = (g, x) => g
-    .attr("transform", `translate(0,${this.height - this.margin.bottom})`)
-    .call(d3
-      .axisBottom(x)
-      .ticks(this.width / 40)
-      .tickSizeOuter(0))
+    this.xAxis = (g, x) =>
+      g
+        .attr("transform", `translate(0,${this.height - this.margin.bottom})`)
+        .attr(
+          "clip-path",
+          "url(" + new URL("#clipclip", window.location.href) + ")"
+        )
+        .call(
+          d3
+            .axisBottom(x)
+            .tickValues(this.basePos.map((base) => base[0]))
+            .tickFormat((d, i) =>
+              i % 10 === 0
+                ? this.basePos.map((base) => base[0]).indexOf(d) + 1
+                : ""
+            )
+            .tickSizeOuter(0)
+        );
 
 
     this.svg
@@ -147,9 +187,9 @@ export class SangerChart {
       .attr("id", "clipclip")
       .append("rect")
       .attr("x", this.margin.left)
-      .attr("y", this.margin.top)
+      .attr("y", 0)
       .attr("width", this.width - this.margin.left - this.margin.right)
-      .attr("height", this.height - this.margin.top - this.margin.bottom);
+      .attr("height", this.height - this.margin.bottom);
 
     this.area = {
       A: (data, x = this.xScale) =>
@@ -306,62 +346,45 @@ export class SangerChart {
   }
 
   basecall() {
-    let pos = 0
-    const basePos = []
-    for (const base in this.data) {
-      const length = this.data[base].A.length;
-      pos += length
-      basePos.push(pos - length / 2)
-      this.svg
-        .append("text")
-        .attr("x", this.xScale(pos - length / 2))
-        .attr("y", 20)
-        .attr("font-size", "20px")
-        .attr("font-weight", "bold")
-        .attr("text-anchor", "middle")
-        .attr("class", "basecall")
-        .text(call(this.data[base]));
-    }
-
-    function call(base: base) {
-      const maxArray: {[key: string]: number} = {}
-      for (const type in base) {
-        maxArray[type] = Math.max(...base[type as keyof base])
-      }
-      const max = Math.max(...Object.values(maxArray))
-      switch(max) {
-        case maxArray.A:
-          return "A"
-        case maxArray.T:
-          return "T"
-        case maxArray.C:
-          return "C"
-        case maxArray.G:
-          return "G"
-      }
-      return "N"
-    }
+    this.svg
+      .selectAll(".basecalltext")
+      .data(this.basePos)
+      .enter()
+      .append("text")
+      .attr("x", (d,i) => {
+        return this.xScale(d[0] as NumberValue)
+      })
+      .attr("y", 20)
+      .attr("font-size", "16px")
+      .attr("font-weight", "bold")
+      .attr("text-anchor", "middle")
+      .attr("class", "basecall")
+      .attr(
+        "clip-path",
+        "url(" + new URL("#clipclip", window.location.href) + ")"
+      )
+      .style("fill", d => {
+        // console.log(d)
+        if (d[1] === "A") {
+          return "#baf28d";
+        } else if (d[1] === "T") {
+          return "#f26389";
+        } else if (d[1] === "C") {
+          return "#8a9fe3";
+        } else if (d[1] === "G") {
+          return "#f2bc8d";
+        } else {
+          return "#000000";
+        }
+      })
+      .text((d) => d[1]);
   }
 
   setZoom() {
-    const zoomed = (event: any) => {
-      const xz = event.transform.rescaleX(this.xScale);
-      this.svg.selectAll('.basecall').attr('x', (d, i, elements) => {
-        return xz(parseFloat(d3.select(elements[i]).attr("x")))
-      });
-      this.areaPath.A.attr("d", this.area.A(this.I, xz));
-      this.areaPath.T.attr("d", this.area.T(this.I, xz));
-      this.areaPath.G.attr("d", this.area.G(this.I, xz));
-      this.areaPath.C.attr("d", this.area.C(this.I, xz));
-      this.linePath.A.attr("d", this.line.A(this.I, xz));
-      this.linePath.T.attr("d", this.line.T(this.I, xz));
-      this.linePath.G.attr("d", this.line.G(this.I, xz));
-      this.linePath.C.attr("d", this.line.C(this.I, xz));
-      this.gx.call(this.xAxis, xz);
-    };
+    
     const zoom = d3
       .zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 32])
+      .scaleExtent([1, 16])
       .extent([
         [this.margin.left, 0],
         [this.width - this.margin.right, this.height],
@@ -371,10 +394,32 @@ export class SangerChart {
         [this.width - this.margin.right, Infinity],
       ])
       .on("zoom", zoomed);
+      const graph = this
+      function zoomed (event: any) {
+        const xz = event.transform.rescaleX(graph.xScale);
+        graph.svg.selectAll(".basecall").attr("x", (d, i, elements) => {
+          return xz((d as (NumberValue | string)[])[0]);
+        });
+        if (event.transform.k < 2.8) {
+          graph.svg.selectAll(".basecall").style("display", "none");
+        }
+        else {
+          graph.svg.selectAll(".basecall").style("display", "inline");
+        }
+        graph.areaPath.A.attr("d", graph.area.A(graph.I, xz));
+        graph.areaPath.T.attr("d", graph.area.T(graph.I, xz));
+        graph.areaPath.G.attr("d", graph.area.G(graph.I, xz));
+        graph.areaPath.C.attr("d", graph.area.C(graph.I, xz));
+        graph.linePath.A.attr("d", graph.line.A(graph.I, xz));
+        graph.linePath.T.attr("d", graph.line.T(graph.I, xz));
+        graph.linePath.G.attr("d", graph.line.G(graph.I, xz));
+        graph.linePath.C.attr("d", graph.line.C(graph.I, xz));
+        graph.gx.call(graph.xAxis, xz);
+      };
     this.svg
       .call(zoom)
       .transition()
       .duration(750)
-      // .call(zoom.scaleTo, 4);
+      .call(zoom.scaleTo, 4);
   }
 }
