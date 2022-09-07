@@ -40,7 +40,7 @@ export class SangerChart {
     C: (data: any, x?: d3.ScaleLinear<number, number, never>) => string | null;
   };
   xAxis!: (g: any, x: any) => any;
-  basePos: (number|string)[][];
+  basePos: [number, string][];
   constructor(
     data: { [key: string]: base },
     {
@@ -136,8 +136,8 @@ export class SangerChart {
             .axisBottom(x)
             .tickValues(this.basePos.map((base) => base[0]))
             .tickFormat((d, i) =>
-              i % 10 === 0
-                ? this.basePos.map((base) => base[0]).indexOf(d) + 1
+              (i+1) % 10 === 0
+                ? (this.basePos.map((base) => base[0]).indexOf(d as number) + 1).toString()
                 : ""
             )
             .tickSizeOuter(0)
@@ -351,7 +351,7 @@ export class SangerChart {
       .data(this.basePos)
       .enter()
       .append("text")
-      .attr("x", (d,i) => {
+      .attr("x", (d) => {
         return this.xScale(d[0] as NumberValue)
       })
       .attr("y", 20)
@@ -397,7 +397,7 @@ export class SangerChart {
       const graph = this
       function zoomed (event: any) {
         const xz = event.transform.rescaleX(graph.xScale);
-        graph.svg.selectAll(".basecall").attr("x", (d, i, elements) => {
+        graph.svg.selectAll(".basecall").attr("x", (d) => {
           return xz((d as (NumberValue | string)[])[0]);
         });
         if (event.transform.k < 2.8) {
@@ -415,7 +415,7 @@ export class SangerChart {
         graph.linePath.G.attr("d", graph.line.G(graph.I, xz));
         graph.linePath.C.attr("d", graph.line.C(graph.I, xz));
         graph.gx.call(graph.xAxis, xz);
-      };
+      }
     this.svg
       .call(zoom)
       .transition()
